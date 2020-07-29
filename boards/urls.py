@@ -1,9 +1,11 @@
-from django.urls import path
-from rest_framework.urlpatterns import format_suffix_patterns
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from boards import views
 
+router = DefaultRouter();
+router.register(r'boards', views.BoardViewSet)
+
 urlpatterns = [
-    path('boards/', views.BoardList.as_view()),
-    path('boards/<int:pk>', views.BoardDetail.as_view()),
+    path('', include(router.urls))
 ]
 
