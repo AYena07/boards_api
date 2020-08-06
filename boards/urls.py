@@ -4,6 +4,7 @@ from boards import views
 
 router = DefaultRouter()
 router.register(r'boards', views.BoardViewSet)
+router.register(r'sections', views.SectionViewSet)
 router.register(r'users', views.UserViewSet)
 
 urlpatterns = [

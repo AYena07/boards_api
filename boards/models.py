@@ -12,9 +12,18 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
 
 
 class Board(models.Model):
-    created = models.DateField(auto_now_add = True)
+    created = models.DateField(auto_now_add=True)
     title = models.CharField(max_length=100)
     owner = models.ForeignKey('auth.User', related_name='boards', on_delete=models.CASCADE)
+
+    class Meta:
+        ordering = ['created']
+
+
+class Section(models.Model):
+    created = models.DateField(auto_now_add=True)
+    title = models.CharField(max_length=100)
+    board = models.ForeignKey(Board, related_name="sections", on_delete=models.CASCADE)
 
     class Meta:
         ordering = ['created']
