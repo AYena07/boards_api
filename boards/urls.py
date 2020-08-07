@@ -8,5 +8,5 @@ router.register(r'sections', views.SectionViewSet)
 router.register(r'users', views.UserViewSet)
 
 urlpatterns = [
-    path('', include(router.urls))
+    path('', include(router.urls)),
 ]

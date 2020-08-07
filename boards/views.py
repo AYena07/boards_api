@@ -34,7 +34,7 @@ class BoardViewSet(viewsets.ModelViewSet):
             if username is not None:
                 queryset = queryset.filter(owner=username)
         except TypeError:
-            return []
+            return Board.objects.none()
         return queryset
 
     def perform_create(self, serializer):
@@ -51,15 +51,13 @@ class SectionViewSet(viewsets.ModelViewSet):
         by filtering against a `username` query parameter in the URL.
         """
         queryset = Section.objects.all()
-        res = []
         try:
             username = self.request.user
-            for section in queryset:
-                if section.board.owner == username:
-                    res.append(section)
+            if username is not None:
+                queryset = queryset.filter(board__owner=username)
         except TypeError:
-            return None
-        return res
+            return Section.objects.none()
+        return queryset
 
     def create(self, request, *args, **kwargs):
         # print(request.user)
