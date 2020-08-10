@@ -27,3 +27,13 @@ class Section(models.Model):
 
     class Meta:
         ordering = ['created']
+
+
+class Sticker(models.Model):
+    created = models.DateField(auto_now_add=True)
+    title = models.CharField(max_length=100)
+    text = models.CharField(max_length=500)
+    section = models.ForeignKey(Section, related_name="stickers", on_delete=models.CASCADE)
+
+    class Meta:
+        ordering = ['created']

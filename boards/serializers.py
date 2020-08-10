@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from boards.models import Board, Section
+from boards.models import Board, Section, Sticker
 from django.contrib.auth.models import User
 
 
@@ -13,27 +13,35 @@ class BoardSerializer(serializers.ModelSerializer):
 
 
 class SectionSerializer(serializers.ModelSerializer):
+    stickers = serializers.PrimaryKeyRelatedField(many=True, queryset=())
 
     class Meta:
         model = Section
-        fields = ['id', 'title', 'board']
+        fields = ['id', 'title', 'board', 'stickers']
+
+
+class StickerSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Sticker
+        fields = ['id', 'title', 'text', 'section']
 
 
 class UserSerializer(serializers.ModelSerializer):
-    '''
+    """
     boards = serializers.PrimaryKeyRelatedField(many=True, queryset=Board.objects.all())
-    password = serializers.CharField(max_length=128, min_length=8, write_only=False, required=True)
 
     class Meta:
         model = User
         fields = ['id', 'username', 'password', 'boards']
-    '''
+    """
+
     boards = serializers.PrimaryKeyRelatedField(many=True, queryset=Board.objects.all())
+    password = serializers.CharField(max_length=128, min_length=8, write_only=True, required=True)
 
     class Meta:
         model = User
         fields = ('id', 'username', 'password', 'boards')
-        write_only_fields = ('password',)
         read_only_fields = ('id',)
 
     def create(self, validated_data):
