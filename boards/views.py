@@ -1,4 +1,7 @@
 from django.shortcuts import render
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.viewsets import GenericViewSet
+
 from boards.models import Board, Section, Sticker
 from boards.serializers import BoardSerializer, UserSerializer, SectionSerializer, StickerSerializer, UpdateSectionSerializer
 from rest_framework.decorators import action
@@ -8,10 +11,11 @@ from django.contrib.auth.models import User, AnonymousUser
 from rest_framework import viewsets
 from rest_framework import mixins
 from rest_framework import permissions
-from boards.perm import IsOwnerOrBoardUser, IsSectionUser, IsStickerUser
+from boards.perm import IsOwnerOrBoardUser, IsSectionUser, IsStickerUser, IsAdminOrReadOnly
 from django.db.models import Q
 from rest_framework import status
 from rest_framework.generics import get_object_or_404
+from rest_framework.authtoken.models import Token
 
 
 class BoardViewSet(viewsets.ModelViewSet):
@@ -24,16 +28,15 @@ class BoardViewSet(viewsets.ModelViewSet):
     serializer_class = BoardSerializer
     permission_classes = [IsOwnerOrBoardUser]
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
+    def get_queryset(self):
+        queryset = Board.objects.all()
         user = self.request.user
-        print(user)
+        # print(user)
         if not user.is_anonymous:
-            queryset = queryset.filter(Q(users__id=user.id) | Q(owner__id=user.id))
+            queryset = self.request.user.boards.all() | self.request.user.guest_boards.all()
         else:
             queryset = queryset.none()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        return queryset
         # print(queryset)
         # return super().list(self, request, *args, **kwargs)
 
@@ -69,16 +72,15 @@ class SectionViewSet(viewsets.ModelViewSet):
     serializer_class = SectionSerializer
     permission_classes = [IsSectionUser]
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
+    def get_queryset(self):
+        queryset = Section.objects.all()
         user = self.request.user
         print(user)
         if not user.is_anonymous:
             queryset = queryset.filter(Q(board__users__id=user.id) | Q(board__owner__id=user.id))
         else:
             queryset = queryset.none()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        return queryset
 
     def create(self, request, *args, **kwargs):
         # print(request.user)
@@ -119,16 +121,15 @@ class StickerViewSet(viewsets.ModelViewSet):
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
         return super().update(request, *args, **kwargs)
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
+    def get_queryset(self):
+        queryset = Sticker.objects.all()
         user = self.request.user
         print(user)
         if not user.is_anonymous:
             queryset = queryset.filter(Q(section__board__users__id=user.id) | Q(section__board__owner__id=user.id))
         else:
             queryset = queryset.none()
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        return queryset
 
     def create(self, request, *args, **kwargs):
         # print(request.user)
@@ -145,8 +146,53 @@ class StickerViewSet(viewsets.ModelViewSet):
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet,
                   mixins.CreateModelMixin,
-                  mixins.DestroyModelMixin,):
+                  mixins.DestroyModelMixin,
+                  mixins.UpdateModelMixin,):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminOrReadOnly]
+
+
+class InviteLinkSet(mixins.RetrieveModelMixin,
+                    GenericViewSet):
+    queryset = Board.objects.none()
+    serializer_class = BoardSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        pk = kwargs['pk']
+        board = Board.objects.filter(invite_link = pk)
+        if board:
+            board = board[0]
+            if self.request.user.is_anonymous:
+                content = {
+                    'status': 'you are not logged in'
+                }
+                return Response(content, status=status.HTTP_403_FORBIDDEN)
+            else:
+                if self.request.user not in board.users.all() and self.request.user != board.owner:
+                    users = list(board.users.all())
+                    users.append(self.request.user)
+                    BoardSerializer().update(instance=board, validated_data={'users': users})
+                content = {
+                    'id': board.id
+                }
+                return Response(content)
+        else:
+            content = {
+                'status': 'no such board'
+            }
+            return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+
+class CustomAuthToken(ObtainAuthToken):
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data,
+                                           context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data['user']
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({
+            'token': token.key,
+            'user_id': user.pk,
+        })
 

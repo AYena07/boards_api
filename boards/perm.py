@@ -19,3 +19,11 @@ class IsSectionUser(permissions.BasePermission):
 class IsStickerUser(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         return obj.section.board.owner == request.user or request.user in obj.section.board.users.all()
+
+
+class IsAdminOrReadOnly(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        # print(request.user.is_superuser)
+        return request.user.is_superuser

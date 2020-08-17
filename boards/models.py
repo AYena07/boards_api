@@ -17,6 +17,7 @@ class Board(models.Model):
     title = models.CharField(max_length=100)
     owner = models.ForeignKey('auth.User', related_name='boards', on_delete=models.CASCADE)
     users = models.ManyToManyField(User, blank=True, related_name='guest_boards')
+    invite_link = models.CharField(max_length=100, default='---')
 
     class Meta:
         ordering = ['created']

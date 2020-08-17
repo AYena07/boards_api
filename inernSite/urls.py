@@ -18,6 +18,7 @@ from django.urls import path
 from django.urls import path, include
 from rest_framework.authtoken import views
 from rest_framework.urls import url
+import boards
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,5 +30,5 @@ urlpatterns += [
 ]
 
 urlpatterns += [
-    url(r'^api-token-auth/', views.obtain_auth_token)
+    url(r'^api-token-auth/', boards.views.CustomAuthToken.as_view())
 ]

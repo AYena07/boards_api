@@ -7,6 +7,7 @@ router.register(r'boards', views.BoardViewSet)
 router.register(r'sections', views.SectionViewSet)
 router.register(r'users', views.UserViewSet)
 router.register(r'stickers', views.StickerViewSet)
+router.register(r'invite', views.InviteLinkSet)
 
 urlpatterns = [
     path('', include(router.urls)),
