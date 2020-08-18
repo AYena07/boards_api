@@ -15,7 +15,7 @@ class BoardSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         board = super().create(validated_data)
-        board.invite_link = (board.title + board.id).__hash__()
+        board.invite_link = abs((board.title + str(board.id)).__hash__())
         board.save()
 
         return board
@@ -26,7 +26,7 @@ class BoardSerializer(serializers.ModelSerializer):
         word = ''
         for user in instance.users.all():
             word += user.username
-        instance.invite_link = (word + instance.title + str(instance.id)).__hash__()
+        instance.invite_link = abs((word + instance.title + str(instance.id)).__hash__())
         instance.save()
 
         return instance

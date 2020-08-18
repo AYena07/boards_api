@@ -36,7 +36,7 @@ class BoardViewSet(viewsets.ModelViewSet):
             queryset = self.request.user.boards.all() | self.request.user.guest_boards.all()
         else:
             queryset = queryset.none()
-        return queryset
+        return queryset.distinct()
         # print(queryset)
         # return super().list(self, request, *args, **kwargs)
 
@@ -75,12 +75,12 @@ class SectionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Section.objects.all()
         user = self.request.user
-        print(user)
+        # print(user)
         if not user.is_anonymous:
             queryset = queryset.filter(Q(board__users__id=user.id) | Q(board__owner__id=user.id))
         else:
             queryset = queryset.none()
-        return queryset
+        return queryset.distinct()
 
     def create(self, request, *args, **kwargs):
         # print(request.user)
@@ -124,12 +124,12 @@ class StickerViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Sticker.objects.all()
         user = self.request.user
-        print(user)
+        # print(user)
         if not user.is_anonymous:
             queryset = queryset.filter(Q(section__board__users__id=user.id) | Q(section__board__owner__id=user.id))
         else:
             queryset = queryset.none()
-        return queryset
+        return queryset.distinct()
 
     def create(self, request, *args, **kwargs):
         # print(request.user)
@@ -155,7 +155,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet,
 
 class InviteLinkSet(mixins.RetrieveModelMixin,
                     GenericViewSet):
-    queryset = Board.objects.none()
+    # queryset = Board.objects.none()
     serializer_class = BoardSerializer
 
     def retrieve(self, request, *args, **kwargs):
