@@ -1,21 +1,17 @@
-from django.shortcuts import render
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.viewsets import GenericViewSet
-
 from boards.models import Board, Section, Sticker
 from boards.serializers import BoardSerializer, UserSerializer, SectionSerializer, StickerSerializer, UpdateSectionSerializer
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
-from django.http import Http404
-from django.contrib.auth.models import User, AnonymousUser
+from django.contrib.auth.models import User
 from rest_framework import viewsets
 from rest_framework import mixins
 from rest_framework import permissions
 from boards.perm import IsOwnerOrBoardUser, IsSectionUser, IsStickerUser, IsAdminOrReadOnly
 from django.db.models import Q
 from rest_framework import status
-from rest_framework.generics import get_object_or_404
 from rest_framework.authtoken.models import Token
+from django.utils.crypto import get_random_string
 
 
 class BoardViewSet(viewsets.ModelViewSet):
@@ -26,27 +22,16 @@ class BoardViewSet(viewsets.ModelViewSet):
     """
     queryset = Board.objects.all()
     serializer_class = BoardSerializer
-    permission_classes = [IsOwnerOrBoardUser]
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrBoardUser]
 
     def get_queryset(self):
-        queryset = Board.objects.all()
+        queryset = super().get_queryset()
         user = self.request.user
-        # print(user)
         if not user.is_anonymous:
             queryset = self.request.user.boards.all() | self.request.user.guest_boards.all()
         else:
             queryset = queryset.none()
         return queryset.distinct()
-        # print(queryset)
-        # return super().list(self, request, *args, **kwargs)
-
-    def create(self, request, *args, **kwargs):
-        if self.request.user.is_anonymous:
-            content = {
-                'status': 'request was not permitted'
-            }
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
-        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -70,12 +55,11 @@ class BoardViewSet(viewsets.ModelViewSet):
 class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.all()
     serializer_class = SectionSerializer
-    permission_classes = [IsSectionUser]
+    permission_classes = [permissions.IsAuthenticated, IsSectionUser]
 
     def get_queryset(self):
-        queryset = Section.objects.all()
+        queryset = super().get_queryset()
         user = self.request.user
-        # print(user)
         if not user.is_anonymous:
             queryset = queryset.filter(Q(board__users__id=user.id) | Q(board__owner__id=user.id))
         else:
@@ -83,7 +67,6 @@ class SectionViewSet(viewsets.ModelViewSet):
         return queryset.distinct()
 
     def create(self, request, *args, **kwargs):
-        # print(request.user)
         board_id = request.data['board']
         board = Board.objects.filter(pk=board_id)[0]
         if board.owner != request.user and request.user not in board.users.all():
@@ -107,13 +90,12 @@ class SectionViewSet(viewsets.ModelViewSet):
 class StickerViewSet(viewsets.ModelViewSet):
     queryset = Sticker.objects.all()
     serializer_class = StickerSerializer
-    permission_classes = [IsStickerUser]
+    permission_classes = [permissions.IsAuthenticated, IsStickerUser]
 
     def update(self, request, *args, **kwargs):
         print(request.data, args, kwargs)
         sticker = self.get_object()
         section = Section.objects.filter(pk=request.data['section'])[0]
-        # print(request.data, kwargs['pk'], request.data['board'], section.board.id)
         if str(sticker.section.board.id) != str(section.board.id):
             content = {
                 'status': 'request was not permitted'
@@ -122,9 +104,8 @@ class StickerViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
     def get_queryset(self):
-        queryset = Sticker.objects.all()
+        queryset = super().get_queryset()
         user = self.request.user
-        # print(user)
         if not user.is_anonymous:
             queryset = queryset.filter(Q(section__board__users__id=user.id) | Q(section__board__owner__id=user.id))
         else:
@@ -132,7 +113,6 @@ class StickerViewSet(viewsets.ModelViewSet):
         return queryset.distinct()
 
     def create(self, request, *args, **kwargs):
-        # print(request.user)
         section_id = request.data['section']
         section = Section.objects.filter(pk=section_id)[0]
         board = section.board
@@ -153,35 +133,33 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet,
     permission_classes = [IsAdminOrReadOnly]
 
 
-class InviteLinkSet(mixins.RetrieveModelMixin,
-                    GenericViewSet):
-    # queryset = Board.objects.none()
-    serializer_class = BoardSerializer
-
-    def retrieve(self, request, *args, **kwargs):
-        pk = kwargs['pk']
-        board = Board.objects.filter(invite_link = pk)
-        if board:
-            board = board[0]
-            if self.request.user.is_anonymous:
-                content = {
-                    'status': 'you are not logged in'
-                }
-                return Response(content, status=status.HTTP_403_FORBIDDEN)
-            else:
-                if self.request.user not in board.users.all() and self.request.user != board.owner:
-                    users = list(board.users.all())
-                    users.append(self.request.user)
-                    BoardSerializer().update(instance=board, validated_data={'users': users})
-                content = {
-                    'id': board.id
-                }
-                return Response(content)
-        else:
+@api_view(http_method_names=['POST'])
+def invite(request, invite_id):
+    print(request.user, invite_id)
+    pk = invite_id
+    board = Board.objects.filter(invite_link=pk)
+    if board:
+        board = board[0]
+        user = request.user
+        if user.is_anonymous:
             content = {
-                'status': 'no such board'
+                'status': 'you are not logged in'
             }
-            return Response(content, status=status.HTTP_404_NOT_FOUND)
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+        else:
+            if user not in board.users.all() and user != board.owner:
+                board.users.add(user)
+                board.invite_link = get_random_string()
+                board.save()
+            content = {
+                'id': board.id
+            }
+            return Response(content)
+    else:
+        content = {
+            'status': 'no such board'
+        }
+        return Response(content, status=status.HTTP_404_NOT_FOUND)
 
 
 class CustomAuthToken(ObtainAuthToken):

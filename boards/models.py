@@ -4,6 +4,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
+from django.utils.crypto import get_random_string
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
@@ -17,7 +18,7 @@ class Board(models.Model):
     title = models.CharField(max_length=100)
     owner = models.ForeignKey('auth.User', related_name='boards', on_delete=models.CASCADE)
     users = models.ManyToManyField(User, blank=True, related_name='guest_boards')
-    invite_link = models.CharField(max_length=100, default='---')
+    invite_link = models.CharField(max_length=100, default=get_random_string)
 
     class Meta:
         ordering = ['created']

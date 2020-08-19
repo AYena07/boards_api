@@ -7,29 +7,10 @@ class BoardSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
     sections = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     invite_link = serializers.ReadOnlyField()
-    # users = serializers.ManyToManyField(User, blank=True, related_name='guest_boards')
 
     class Meta:
         model = Board
         fields = ['id', 'title', 'owner', 'sections', 'users', 'invite_link']
-
-    def create(self, validated_data):
-        board = super().create(validated_data)
-        board.invite_link = abs((board.title + str(board.id)).__hash__())
-        board.save()
-
-        return board
-
-    def update(self, instance, validated_data):
-        # print(type(validated_data['users']))
-        instance = super().update(instance, validated_data)
-        word = ''
-        for user in instance.users.all():
-            word += user.username
-        instance.invite_link = abs((word + instance.title + str(instance.id)).__hash__())
-        instance.save()
-
-        return instance
 
 
 class SectionSerializer(serializers.ModelSerializer):
@@ -57,14 +38,6 @@ class StickerSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """
-    boards = serializers.PrimaryKeyRelatedField(many=True, queryset=Board.objects.all())
-
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'password', 'boards']
-    """
-
     boards = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     guest_boards = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     password = serializers.CharField(max_length=128, min_length=8,  required=True, write_only=True)
