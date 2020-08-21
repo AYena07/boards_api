@@ -1,4 +1,6 @@
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.viewsets import GenericViewSet
+
 from boards.models import Board, Section, Sticker
 from boards.serializers import BoardSerializer, UserSerializer, SectionSerializer, StickerSerializer, UpdateSectionSerializer
 from rest_framework.decorators import action, api_view
@@ -101,6 +103,11 @@ class StickerViewSet(viewsets.ModelViewSet):
                 'status': 'request was not permitted'
             }
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
+        if request.data['assigned_to'] not in sticker.section.board.users.all():
+            content = {
+                'status': 'request was not permitted'
+            }
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
         return super().update(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -121,10 +128,17 @@ class StickerViewSet(viewsets.ModelViewSet):
                 'status': 'request was not permitted'
             }
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
+        user = User.objects.filter(id=request.data['assigned_to'])[0]
+        if user not in board.users.all() and user != board.owner:
+            content = {
+                'status': 'request was not permitted'
+            }
+            return Response(content, status=status.HTTP_400_BAD_REQUEST)
         return super().create(request, *args, **kwargs)
 
 
-class UserViewSet(viewsets.ReadOnlyModelViewSet,
+class UserViewSet(GenericViewSet,
+                  mixins.RetrieveModelMixin,
                   mixins.CreateModelMixin,
                   mixins.DestroyModelMixin,
                   mixins.UpdateModelMixin,):
@@ -132,10 +146,16 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet,
     serializer_class = UserSerializer
     permission_classes = [IsAdminOrReadOnly]
 
+    # permission class gives no permission for POST requests from default user,
+    # however user creates instead
+    def create(self, request, *args, **kwargs):
+        if not self.request.user.is_superuser:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        return super().create(request, *args, **kwargs)
+
 
 @api_view(http_method_names=['POST'])
 def invite(request, invite_id):
-    print(request.user, invite_id)
     pk = invite_id
     board = Board.objects.filter(invite_link=pk)
     if board:
@@ -148,8 +168,8 @@ def invite(request, invite_id):
             return Response(content, status=status.HTTP_403_FORBIDDEN)
         else:
             if user not in board.users.all() and user != board.owner:
-                board.users.add(user)
                 board.invite_link = get_random_string()
+                board.users.add(user)
                 board.save()
             content = {
                 'id': board.id

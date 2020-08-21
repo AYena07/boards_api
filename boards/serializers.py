@@ -10,7 +10,7 @@ class BoardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Board
-        fields = ['id', 'title', 'owner', 'sections', 'users', 'invite_link']
+        fields = ['id', 'title', 'description', 'owner', 'sections', 'users', 'invite_link']
 
 
 class SectionSerializer(serializers.ModelSerializer):
@@ -18,7 +18,7 @@ class SectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Section
-        fields = ['id', 'title', 'board', 'stickers']
+        fields = ['id', 'title', 'description', 'board', 'stickers']
 
 
 class UpdateSectionSerializer(serializers.ModelSerializer):
@@ -27,14 +27,14 @@ class UpdateSectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Section
-        fields = ['id', 'title', 'board', 'stickers']
+        fields = ['id', 'title', 'description', 'board', 'stickers']
 
 
 class StickerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Sticker
-        fields = ['id', 'title', 'text', 'section']
+        fields = ['id', 'title', 'text', 'section', 'assigned_to']
 
 
 class UserSerializer(serializers.ModelSerializer):
