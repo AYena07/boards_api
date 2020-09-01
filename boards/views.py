@@ -3,7 +3,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from boards.models import Board, Section, Sticker
 from boards.serializers import BoardSerializer, UserSerializer, SectionSerializer, StickerSerializer, UpdateSectionSerializer
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from rest_framework import viewsets
@@ -71,11 +71,11 @@ class SectionViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         board_id = request.data['board']
         board = Board.objects.filter(pk=board_id)[0]
-        if board.owner != request.user and request.user not in board.users.all():
+        if not IsOwnerOrBoardUser().has_object_permission(request, self, board):
             content = {
                 'status': 'request was not permitted'
             }
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
         return super().create(request, *args, **kwargs)
 
     @action(detail=True, methods=['GET'])
@@ -95,19 +95,18 @@ class StickerViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsStickerUser]
 
     def update(self, request, *args, **kwargs):
-        print(request.data, args, kwargs)
         sticker = self.get_object()
         section = Section.objects.filter(pk=request.data['section'])[0]
         if str(sticker.section.board.id) != str(section.board.id):
             content = {
                 'status': 'request was not permitted'
             }
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
-        if request.data['assigned_to'] not in sticker.section.board.users.all():
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+        if not IsStickerUser().has_object_permission(request, self, sticker):
             content = {
                 'status': 'request was not permitted'
             }
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
         return super().update(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -123,17 +122,11 @@ class StickerViewSet(viewsets.ModelViewSet):
         section_id = request.data['section']
         section = Section.objects.filter(pk=section_id)[0]
         board = section.board
-        if board.owner != request.user and request.user not in board.users.all():
+        if not IsSectionUser().has_object_permission(request, self, section):
             content = {
                 'status': 'request was not permitted'
             }
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
-        user = User.objects.filter(id=request.data['assigned_to'])[0]
-        if user not in board.users.all() and user != board.owner:
-            content = {
-                'status': 'request was not permitted'
-            }
-            return Response(content, status=status.HTTP_400_BAD_REQUEST)
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
         return super().create(request, *args, **kwargs)
 
 
@@ -155,26 +148,21 @@ class UserViewSet(GenericViewSet,
 
 
 @api_view(http_method_names=['POST'])
+@permission_classes([permissions.IsAuthenticated])
 def invite(request, invite_id):
     pk = invite_id
     board = Board.objects.filter(invite_link=pk)
     if board:
         board = board[0]
         user = request.user
-        if user.is_anonymous:
-            content = {
-                'status': 'you are not logged in'
-            }
-            return Response(content, status=status.HTTP_403_FORBIDDEN)
-        else:
-            if user not in board.users.all() and user != board.owner:
-                board.invite_link = get_random_string()
-                board.users.add(user)
-                board.save()
-            content = {
-                'id': board.id
-            }
-            return Response(content)
+        if user not in board.users.all() and user != board.owner:
+            board.invite_link = get_random_string()
+            board.users.add(user)
+            board.save()
+        content = {
+            'id': board.id
+        }
+        return Response(content)
     else:
         content = {
             'status': 'no such board'

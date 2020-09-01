@@ -110,7 +110,7 @@ class InviteTests(APITestCase):
         url = r'http://127.0.0.1:8000/invite/' + key + r'/'
         response = self.client.post(url, {}, format='json')
         board = Board.objects.filter(title="test")[0]
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertNotIn('id', response.data)
         self.assertEqual(board.users.count(), 0)
         self.assertEqual(board.invite_link, key)

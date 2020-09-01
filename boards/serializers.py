@@ -5,12 +5,13 @@ from django.contrib.auth.models import User
 
 class BoardSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
+    owner_id = serializers.ReadOnlyField(source='owner.id')
     sections = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     invite_link = serializers.ReadOnlyField()
 
     class Meta:
         model = Board
-        fields = ['id', 'title', 'description', 'owner', 'sections', 'users', 'invite_link']
+        fields = ['id', 'title', 'description', 'owner', 'owner_id', 'sections', 'users', 'invite_link']
 
 
 class SectionSerializer(serializers.ModelSerializer):
