@@ -16,6 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from django.urls import path, include
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from rest_framework.authtoken import views
 from rest_framework.urls import url
 import boards
@@ -32,3 +33,5 @@ urlpatterns += [
 urlpatterns += [
     url(r'^api-token-auth/', boards.views.CustomAuthToken.as_view())
 ]
+
+urlpatterns += staticfiles_urlpatterns()
