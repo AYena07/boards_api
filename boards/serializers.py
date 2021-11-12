@@ -1,6 +1,11 @@
 from rest_framework import serializers
-from boards.models import Board, Section, Sticker
+from boards.models import Board, Section, Sticker, SetPasswordField
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
+
+
+WRONG_EMAIL_OR_PASSWORD = 'Incorrect email address and / or password.'
+USERNAME_IS_USED_BY_USER = 'Account with this username already exists.'
 
 
 class BoardSerializer(serializers.ModelSerializer):
@@ -38,6 +43,33 @@ class StickerSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'text', 'section', 'assigned_to']
 
 
+class UserRegisterSerializer(serializers.ModelSerializer):
+    password = SetPasswordField()
+
+    def create(self, validated_data):
+        user = User.objects.create(
+            username=validated_data.get('username'),
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+        )
+
+        user.set_password(validated_data['password'])
+        user.save()
+
+        return user
+
+    @staticmethod
+    def validate_username(username):
+        if User.objects.filter(**{'{}__iexact'.format(User.USERNAME_FIELD): username}).exists():
+            raise serializers.ValidationError(USERNAME_IS_USED_BY_USER)
+        return username
+
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'password', 'boards', 'guest_boards', 'first_name', 'last_name')
+        read_only_fields = ('id',)
+
+
 class UserSerializer(serializers.ModelSerializer):
     boards = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     guest_boards = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
@@ -50,9 +82,9 @@ class UserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = User.objects.create(
-            username=validated_data['username'],
-            first_name=validated_data['first_name'],
-            last_name=validated_data['last_name'],
+            username=validated_data.get('username'),
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
         )
 
         user.set_password(validated_data['password'])

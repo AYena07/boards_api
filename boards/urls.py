@@ -11,4 +11,5 @@ router.register(r'stickers', views.StickerViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('invite/<slug:invite_id>/', views.invite, name='invite'),
+    path('registration/', views.registration, name='registration')
 ]

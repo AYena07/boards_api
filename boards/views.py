@@ -2,7 +2,8 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.viewsets import GenericViewSet
 
 from boards.models import Board, Section, Sticker
-from boards.serializers import BoardSerializer, UserSerializer, SectionSerializer, StickerSerializer, UpdateSectionSerializer
+from boards.serializers import BoardSerializer, UserSerializer, SectionSerializer, StickerSerializer, \
+    UpdateSectionSerializer, UserRegisterSerializer
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.contrib.auth.models import User
@@ -13,6 +14,7 @@ from boards.perm import IsOwnerOrBoardUser, IsSectionUser, IsStickerUser, IsAdmi
 from django.db.models import Q
 from rest_framework import status
 from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated
 from django.utils.crypto import get_random_string
 
 
@@ -70,7 +72,10 @@ class SectionViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         board_id = request.data['board']
-        board = Board.objects.filter(pk=board_id)[0]
+        try:
+            board = Board.objects.filter(pk=board_id)[0]
+        except IndexError:
+            return Response({'detail': 'such board does not exist'}, status=status.HTTP_403_FORBIDDEN)
         if not IsOwnerOrBoardUser().has_object_permission(request, self, board):
             content = {
                 'status': 'request was not permitted'
@@ -96,7 +101,13 @@ class StickerViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         sticker = self.get_object()
-        section = Section.objects.filter(pk=request.data['section'])[0]
+        sections = Section.objects.filter(pk=request.data['section'])
+        if not len(sections):
+            content = {
+                'section': ['Such section does not exist']
+            }
+            return Response(content, status=status.HTTP_403_FORBIDDEN)
+        section = sections[0]
         if str(sticker.section.board.id) != str(section.board.id):
             content = {
                 'status': 'request was not permitted'
@@ -139,6 +150,12 @@ class UserViewSet(GenericViewSet,
     serializer_class = UserSerializer
     permission_classes = [IsAdminOrReadOnly]
 
+    @action(detail=False, methods=['DELETE'], permission_classes=[IsAuthenticated])
+    def delete_me(self, request):
+        user = User.objects.get(id=request.user.id)
+        user.delete()
+        return Response('Successfully deleted', status=status.HTTP_200_OK)
+
     # permission class gives no permission for POST requests from default user,
     # however user creates instead
     def create(self, request, *args, **kwargs):
@@ -165,9 +182,23 @@ def invite(request, invite_id):
         return Response(content)
     else:
         content = {
-            'status': 'no such board'
+            'detail': 'Such invite token does not exist'
         }
         return Response(content, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(http_method_names=['POST'])
+def registration(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    if not username or not password:
+        return Response('No username or password', status=status.HTTP_400_BAD_REQUEST)
+    if User.objects.filter(username=username).count() > 0:
+        return Response('User already exists', status=status.HTTP_403_FORBIDDEN)
+    serializer = UserRegisterSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class CustomAuthToken(ObtainAuthToken):

@@ -24,6 +24,7 @@ import boards
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('boards.urls')),
+    path('api/', include('boards.urls')),
 ]
 
 urlpatterns += [
@@ -31,7 +32,8 @@ urlpatterns += [
 ]
 
 urlpatterns += [
-    url(r'^api-token-auth/', boards.views.CustomAuthToken.as_view())
+    url(r'^api-token-auth/', boards.views.CustomAuthToken.as_view()),
+    url(r'^api/login/', boards.views.CustomAuthToken.as_view())
 ]
 
 urlpatterns += staticfiles_urlpatterns()

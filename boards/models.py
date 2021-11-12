@@ -3,15 +3,39 @@ from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User
+import re
 from django.contrib.auth.models import AnonymousUser
 from rest_framework.authtoken.models import Token
 from django.utils.crypto import get_random_string
+from rest_framework.exceptions import ValidationError
+from rest_framework.serializers import CharField
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_auth_token(sender, instance=None, created=False, **kwargs):
     if created:
         Token.objects.create(user=instance)
+
+
+STRONG_PASSWORD_VALIDATION_REGEX = r'^(?=.*[a-zA-Z])(?=.*\d).{8,}$'
+
+WRONG_STRONG_PASSWORD_MESSAGE = 'Password must be at least 8 characters long, contain at least one digit'
+
+
+def validate_password(password):
+    if not bool(re.match(STRONG_PASSWORD_VALIDATION_REGEX, password)):
+        raise ValidationError(WRONG_STRONG_PASSWORD_MESSAGE)
+    return password
+
+
+class SetPasswordField(CharField):
+    def __init__(self, *args, **kwargs):
+        kwargs['write_only'] = True
+        super().__init__(*args, **kwargs)
+
+    def run_validators(self, value):
+        validate_password(value)
+        return super().run_validators(value)
 
 
 class Board(models.Model):
@@ -42,7 +66,7 @@ class Sticker(models.Model):
     text = models.CharField(max_length=500)
     section = models.ForeignKey(Section, related_name="stickers", on_delete=models.CASCADE)
     assigned_to = models.ForeignKey(User, related_name="assigned_stickers",
-                                    on_delete=models.CASCADE, default="Anon")
+                                    on_delete=models.CASCADE, null=True)
 
     class Meta:
         ordering = ['created']
