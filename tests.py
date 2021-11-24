@@ -2,6 +2,7 @@ import pytest
 import requests
 import json
 import logging
+import subprocess
 
 LOGGER = logging.getLogger(__name__)
 URL = 'http://127.0.0.1:8000/'
@@ -26,7 +27,7 @@ def token():
     return resp_json.get('token')
 
 
-def setup_module(_):
+def clear_users():
     url = URL + "api/login/"
     data = {'username': 'test@mail.com', 'password': 'Password1'}
     resp = requests.post(url, data=data)
@@ -50,7 +51,18 @@ def setup_module(_):
         requests.delete(url, data=data, headers=headers)
 
 
-teardown_module = setup_module
+def setup_module(_):
+    subprocess.run(args=["mv", "db.sqlite3", "db_backup.sqlite3"])
+    subprocess.run(args=["touch", "db.sqlite3"])
+    subprocess.run(args=["python3", "manage.py", "migrate"])
+    subprocess.run(args=["python3", "manage.py", "runserver"])
+    clear_users()
+
+
+def teardown_module(_):
+    clear_users()
+    subprocess.run(args=["rm", "db.sqlite3"])
+    subprocess.run(args=["mv", "db_backup.sqlite3", "db.sqlite3"])
 
 
 @pytest.mark.run(order=next(natural_numbers))
