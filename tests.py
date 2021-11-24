@@ -3,6 +3,7 @@ import requests
 import json
 import logging
 import subprocess
+import sys
 
 LOGGER = logging.getLogger(__name__)
 URL = 'http://127.0.0.1:8000/'
@@ -55,7 +56,6 @@ def setup_module(_):
     subprocess.run(args=["mv", "db.sqlite3", "db_backup.sqlite3"])
     subprocess.run(args=["touch", "db.sqlite3"])
     subprocess.run(args=["python3", "manage.py", "migrate"])
-    # subprocess.run(args=["python3", "manage.py", "runserver"])
     clear_users()
 
 
