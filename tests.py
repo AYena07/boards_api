@@ -72,7 +72,7 @@ def test_registration():
     resp = requests.post(url, data=data)
     resp_json = json.loads(resp.text)
     assert 'id' in resp_json
-    assert resp.status_code == 201
+    assert resp.status_code == 202
     assert resp_json.get('username') == 'test@mail.com'
 
     url = URL + "api/registration/"
